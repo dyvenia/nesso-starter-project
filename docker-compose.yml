@@ -1,0 +1,20 @@
+version: "3"
+
+services:
+  nesso:
+    image: ${NESSO_IMAGE}
+    volumes:
+      - .:/home/nesso
+      - ./dbt/lakehouse/profiles.yml:/home/nesso/.dbt/profiles.yml
+      - ${HOME}/.prefect/profiles.toml:/home/nesso/.prefect/profiles.toml
+      - ${HOME}/.config/viadot/config.yaml:/home/nesso/.config/viadot/config.yaml
+      # - add any extra mappings here
+    shm_size: '4gb'
+    command: jupyter lab --no-browser --port=7001 --ip 0.0.0.0 --LabApp.token=''
+    container_name: nesso-${NESSO_PROJECT_NAME}
+    environment:
+      SHELL: "/bin/bash"
+      PYTHONPATH: "/home/nesso/prefect/flows"
+    env_file: .env
+    network_mode: "host"
+    restart: "unless-stopped"

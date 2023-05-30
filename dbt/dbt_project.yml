@@ -1,0 +1,45 @@
+name: "lakehouse"
+version: "1.0.0"
+config-version: 2
+
+vars:
+  landing_schema_location: "{{ env_var('NESSO_LANDING_SCHEMA_LOCATION') }}"
+
+profile: "nesso"
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+docs-paths: ["models"]
+
+target-path: "target" # directory which will store compiled SQL files
+clean-targets: # directories to be removed by `dbt clean`
+  - "target"
+
+dispatch:
+  - macro_namespace: dbt_utils
+    search_order: ["spark_utils", "dbt_utils"]
+
+models:
+  lakehouse:
+    # Automatically add/remove cols & load new data
+    # note this does not backfill data; for that you need to do `dbt run --full-refresh`
+    on_schema_change: sync_all_columns
+    incremental_strategy: merge
+    +bind: false # Materialize all views as late-binding; see https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_VIEW.html#late-binding-views
+    intermediate:
+      schema: intermediate
+      materialized: view
+    marts:
+      sales:
+        schema: sales
+        materialized: table
+      marketing:
+        schema: marketing
+        materialized: table
+        # materialized: "{{ 'table' if target.name == 'prod' else 'view' }}"
+seeds:
+  lakehouse:
+    master_data:
+      schema: staging
