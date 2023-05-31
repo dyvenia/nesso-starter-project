@@ -3,10 +3,9 @@ import os
 import subprocess
 
 from packaging import version
+from prefect import __version__
 from prefect.client import OrionClient
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
-
-from prefect import __version__
 
 if version.parse(__version__) >= version.parse("2.10"):
     from prefect.client.orchestration import get_client
@@ -105,15 +104,12 @@ def get_modified_files(commit_hash):
         changed_files_command, capture_output=True, text=True
     )
 
-    list_of_change = changed_files_result.stdout.strip().split()
-    dict_of_change = {
-        list_of_change[i + 1]: list_of_change[i]
-        for i in range(0, len(list_of_change), 2)
-    }
-    return dict_of_change
+    changes = changed_files_result.stdout.strip().split()
+    modified_files = {changes[i + 1]: changes[i] for i in range(0, len(changes), 2)}
+    return modified_files
 
 
-def run_deployment(path, operation, prefect_deployments, script_directory):
+def visit_deployment(path, operation, prefect_deployments, script_directory):
     os.chdir(script_directory)
     file_name = os.path.basename(path)
 
@@ -137,20 +133,20 @@ def run_deployment(path, operation, prefect_deployments, script_directory):
 
 current_branch = get_current_branch()
 
-commit_hashes = get_commits(main_branch="master", current_branch=current_branch)
+commits = get_commits(main_branch="master", current_branch=current_branch)
 
 loop = asyncio.get_event_loop()
 prefect_deployments = loop.run_until_complete(get_prefect_deployments())
 loop.close()
 script_directory = os.getcwd()
 
-implemented_deployments = []
+visited = []
 
 # Iterate over commit hashes
-for commit_hash in commit_hashes:
-    dict_of_change = get_modified_files(commit_hash)
+for commit in commits:
+    modified_files = get_modified_files(commit)
 
-    for path, operation in dict_of_change.items():
-        if path not in implemented_deployments:
-            run_deployment(path, operation, prefect_deployments, script_directory)
-            implemented_deployments.append(path)
+    for path, operation in modified_files.items():
+        if path not in visited:
+            visit_deployment(path, operation, prefect_deployments, script_directory)
+            visited.append(path)
