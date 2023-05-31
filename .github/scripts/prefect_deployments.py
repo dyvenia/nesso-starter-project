@@ -34,8 +34,10 @@ else:
 def create_deployment(file_name: str) -> None:
     """
     Create a deployment from the specified file_name.
+
     Args:
         file_name (str): The file_name to the deployment script.
+
     Raises:
         subprocess.CalledProcessError: If the deployment creation fails.
     """
@@ -51,8 +53,10 @@ def create_deployment(file_name: str) -> None:
 def delete_deployment(deployment_id: str, deployment_name: str) -> None:
     """
     Delete a deployment with the specified id.
+
     Args:
         deployment_name (str): The name of the deployment.
+
     Raises:
         subprocess.CalledProcessError: If the deployment deletion fails.
     """
@@ -67,6 +71,12 @@ def delete_deployment(deployment_id: str, deployment_name: str) -> None:
 
 
 def get_current_branch() -> str:
+    """
+    Get the name of the current Git branch.
+
+    Returns:
+        str: The name of the current branch.
+    """
     current_branch_command = ["git", "branch", "--show-current"]
     current_branch_result = subprocess.run(
         current_branch_command, capture_output=True, text=True
@@ -77,6 +87,16 @@ def get_current_branch() -> str:
 
 
 def get_commits(main_branch: str, current_branch: str) -> List[str]:
+    """
+    Get the commit hashes between the main branch and the current branch.
+
+    Args:
+        main_branch (str): The name of the main branch.
+        current_branch (str): The name of the current branch.
+
+    Returns:
+        List[str]: A list of commit hashes.
+    """
     # Get the commit hashes for the given branch
     commit_hashes_command = [
         "git",
@@ -93,14 +113,23 @@ def get_commits(main_branch: str, current_branch: str) -> List[str]:
     return commit_hashes
 
 
-def get_modified_files(commit_hash: str) -> Dict[str, str]:
+def get_modified_files(commit: str) -> Dict[str, str]:
+    """
+    Get the modified files in a commit.
+
+    Args:
+        commit (str): The commit hash.
+
+    Returns:
+        Dict[str, str]: A dictionary where the keys are the modified file paths and the values are the file operations.
+    """
     changed_files_command = [
         "git",
         "diff-tree",
         "--no-commit-id",
         "--name-status",
         "-r",
-        commit_hash,
+        commit,
     ]
     changed_files_result = subprocess.run(
         changed_files_command, capture_output=True, text=True
@@ -117,6 +146,15 @@ def visit_deployment(
     prefect_deployments: List[Deployment],
     script_directory: str,
 ) -> None:
+    """
+    Visit a deployment based on the modified file path and based operation create or delete the deployment.
+
+    Args:
+        path (str): The modified file path.
+        operation (str): The file operation ('A', 'M', 'R', 'C', or 'D').
+        prefect_deployments (List[Deployment]): A list of Prefect deployments.
+        script_directory (str): The directory of the deployment scripts.
+    """
     os.chdir(script_directory)
     file_name = os.path.basename(path)
 
