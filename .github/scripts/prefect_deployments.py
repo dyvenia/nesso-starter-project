@@ -1,16 +1,17 @@
 import asyncio
 import os
 import subprocess
+from typing import Dict, List
 
 from packaging import version
 from prefect import __version__
-from prefect.client import OrionClient
+from prefect.deployments import Deployment
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
 
 if version.parse(__version__) >= version.parse("2.10"):
     from prefect.client.orchestration import get_client
 
-    async def get_prefect_deployments():
+    async def get_prefect_deployments() -> List[Deployment]:
         """Retrieve a list of Prefect deployments."""
         async with get_client() as client:
             deployments = await client.read_deployments()
@@ -18,8 +19,9 @@ if version.parse(__version__) >= version.parse("2.10"):
             return deployments
 
 else:
+    from prefect.client import OrionClient
 
-    async def get_prefect_deployments():
+    async def get_prefect_deployments() -> List[Deployment]:
         """Retrieve a list of Prefect deployments."""
         async with OrionClient(
             api=PREFECT_API_URL.value(), api_key=PREFECT_API_KEY.value()
@@ -29,7 +31,7 @@ else:
             return deployments
 
 
-def create_deployment(file_name: str):
+def create_deployment(file_name: str) -> None:
     """
     Create a deployment from the specified file_name.
     Args:
@@ -46,7 +48,7 @@ def create_deployment(file_name: str):
         raise e
 
 
-def delete_deployment(deployment_id: str, deployment_name: str):
+def delete_deployment(deployment_id: str, deployment_name: str) -> None:
     """
     Delete a deployment with the specified id.
     Args:
@@ -56,15 +58,15 @@ def delete_deployment(deployment_id: str, deployment_name: str):
     """
     try:
         print(f"Deleting deployment {deployment_name} ...")
-        delate_command = ["prefect", "deployment", "delete", "--id", deployment_id]
-        subprocess.run(delate_command, capture_output=True, text=True)
+        delete_command = ["prefect", "deployment", "delete", "--id", deployment_id]
+        subprocess.run(delete_command, capture_output=True, text=True)
         print(f"Successfully completed {deployment_name} deployment deleting")
     except subprocess.CalledProcessError as e:
         print(f"FAILED to delete deployment {deployment_name}")
         raise e
 
 
-def get_current_branch():
+def get_current_branch() -> str:
     current_branch_command = ["git", "branch", "--show-current"]
     current_branch_result = subprocess.run(
         current_branch_command, capture_output=True, text=True
@@ -74,7 +76,7 @@ def get_current_branch():
     return current_branch
 
 
-def get_commits(main_branch, current_branch):
+def get_commits(main_branch: str, current_branch: str) -> List[str]:
     # Get the commit hashes for the given branch
     commit_hashes_command = [
         "git",
@@ -91,7 +93,7 @@ def get_commits(main_branch, current_branch):
     return commit_hashes
 
 
-def get_modified_files(commit_hash):
+def get_modified_files(commit_hash: str) -> Dict[str, str]:
     changed_files_command = [
         "git",
         "diff-tree",
@@ -109,7 +111,12 @@ def get_modified_files(commit_hash):
     return modified_files
 
 
-def visit_deployment(path, operation, prefect_deployments, script_directory):
+def visit_deployment(
+    path: str,
+    operation: str,
+    prefect_deployments: List[Deployment],
+    script_directory: str,
+) -> None:
     os.chdir(script_directory)
     file_name = os.path.basename(path)
 
