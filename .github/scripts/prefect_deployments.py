@@ -1,3 +1,15 @@
+"""
+Script for managing Prefect deployments based on Git commits and file changes. It provides functions to create and delete deployments based on modified files.
+
+The script performs the following tasks:
+- Retrieves the current Git branch and the commit hashes between the main branch and the current branch.
+- Retrieves the modified files in each commit.
+- Retrieves current Prefect deployments.
+- Visits each modified file and performs deployment operations based on the file path and operation.
+  - If the modified file is in the 'prefect/flows/deployments/' directory and the operation is 'A', 'M', 'R', or 'C', it creates a deployment from the file.
+  - If the modified file is in the 'prefect/flows/deployments/' directory and the operation is 'D', it deletes the corresponding deployment.
+"""
+
 import asyncio
 import os
 import subprocess
