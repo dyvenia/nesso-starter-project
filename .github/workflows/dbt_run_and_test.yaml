@@ -1,4 +1,4 @@
-name: dbt run and test new models
+name: dbt test and run new models
 
 on:
   push:
