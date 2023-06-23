@@ -105,22 +105,22 @@ def get_current_branch() -> str:
     return current_branch
 
 
-def get_commits(current_branch: str) -> List[str]:
+def get_commits(branch: str) -> List[str]:
     """
-    Retrieve the commit hashes of the parent commits involved in a given branch's merge.
+    Retrieves the commit hashes for the given branch.
 
     Args:
-        current_branch (str): The name of the branch to retrieve commit hashes for.
+        branch (str): The name of the branch.
         
     Returns:
-        List[str]: A list of commit hashes for the parent commits of the given branch's merge.
+        List[str]: A list of commit hashes.
     """
     # Get the commit hashes for the given branch
     commit_hashes_command = [
         "git",
         "rev-list",
         "--ancestry-path",
-        f"{current_branch}^..HEAD",
+        f"{branch}^..HEAD",
     ]
     commit_hashes_result = subprocess.run(
         commit_hashes_command, capture_output=True, text=True
@@ -189,28 +189,14 @@ def visit_deployment(
         logger.info(f"Deleting deployment from {path}")
         for deployment in prefect_deployments:
             if file_name in deployment.tags:
-                delete_deployment(str(deployment.id), deployment.name)
+                delete_deployment(str(deployment.id), deployment.name)         
 
-def revert_string_list(string_list: List[str]) -> List[str]:
-    """
-    Reverses the order of strings in a list.
+branch = get_current_branch()
 
-    Args:
-        string_list (List[str]): The list of strings to be reversed.
-
-    Returns:
-        List[str]: The reversed list of strings.
-    """
-    string_list[:] = string_list[::-1]
-    
-    return string_list                
-
-current_branch = get_current_branch()
-
-commits = get_commits(current_branch=current_branch)
+commits = get_commits(branch=branch)
 
 # Reverse the list of commits to ensure operations are performed in the same order as the user did
-inverted_list = revert_string_list(commits)
+inverted_list = reversed(commits)
 
 loop = asyncio.get_event_loop()
 prefect_deployments = loop.run_until_complete(get_prefect_deployments())
