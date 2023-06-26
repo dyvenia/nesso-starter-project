@@ -11,14 +11,21 @@ The script performs the following tasks:
 """
 
 import asyncio
+import logging
 import os
 import subprocess
 from typing import Dict, List
 
 from packaging import version
+
 from prefect import __version__
 from prefect.deployments import Deployment
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
+
+logging.basicConfig()
+logger = logging.getLogger("Automatic Prefect Deployment")
+logger.setLevel(logging.INFO)
+
 
 if version.parse(__version__) >= version.parse("2.10"):
     from prefect.client.orchestration import get_client
@@ -54,11 +61,11 @@ def create_deployment(file_name: str) -> None:
         subprocess.CalledProcessError: If the deployment creation fails.
     """
     try:
-        print(f"Creating deployment {file_name} ...")
+        logger.info(f"Creating deployment {file_name} ...")
         subprocess.run(["python3", file_name], check=True)
-        print(f"Successfully completed {file_name} deployment creation")
+        logger.info(f"Successfully completed {file_name} deployment creation")
     except subprocess.CalledProcessError as e:
-        print(f"FAILED to create deployment {file_name}")
+        logger.warning(f"FAILED to create deployment {file_name}")
         raise e
 
 
@@ -73,23 +80,23 @@ def delete_deployment(deployment_id: str, deployment_name: str) -> None:
         subprocess.CalledProcessError: If the deployment deletion fails.
     """
     try:
-        print(f"Deleting deployment {deployment_name} ...")
+        logger.info(f"Deleting deployment {deployment_name} ...")
         delete_command = ["prefect", "deployment", "delete", "--id", deployment_id]
         subprocess.run(delete_command, capture_output=True, text=True)
-        print(f"Successfully completed {deployment_name} deployment deleting")
+        logger.info(f"Successfully completed {deployment_name} deployment deleting")
     except subprocess.CalledProcessError as e:
-        print(f"FAILED to delete deployment {deployment_name}")
+        logger.warning(f"FAILED to delete deployment {deployment_name}")
         raise e
 
 
 def get_current_branch() -> str:
     """
-    Get the name of the current Git branch.
+    Retrieve the hash of the current branch.
 
     Returns:
-        str: The name of the current branch.
+        str: The hash of the current branch.
     """
-    current_branch_command = ["git", "branch", "--show-current"]
+    current_branch_command = ["git", "rev-parse", "HEAD"]
     current_branch_result = subprocess.run(
         current_branch_command, capture_output=True, text=True
     )
@@ -98,25 +105,22 @@ def get_current_branch() -> str:
     return current_branch
 
 
-def get_commits(main_branch: str, current_branch: str) -> List[str]:
+def get_commits(branch: str) -> List[str]:
     """
-    Get the commit hashes between the main branch and the current branch.
+    Retrieves the commit hashes for the given branch.
 
     Args:
-        main_branch (str): The name of the main branch.
-        current_branch (str): The name of the current branch.
-
+        branch (str): The name of the branch.
+        
     Returns:
         List[str]: A list of commit hashes.
     """
     # Get the commit hashes for the given branch
     commit_hashes_command = [
         "git",
-        "log",
-        "--no-merges",
-        current_branch,
-        f"^{main_branch}",
-        "--format=%H",
+        "rev-list",
+        "--ancestry-path",
+        f"{branch}^..HEAD",
     ]
     commit_hashes_result = subprocess.run(
         commit_hashes_command, capture_output=True, text=True
@@ -176,21 +180,23 @@ def visit_deployment(
         "R",
         "C",
     ]:
-        print(f"Creating deployment from {path}")
+        logger.info(f"Creating deployment from {path}")
         os.chdir("../../prefect/flows/deployments/")
         if os.path.exists(file_name):
             create_deployment(file_name)
 
     elif path.startswith("prefect/flows/deployments/") and operation == "D":
-        print(f"Deleting deployment from {path}")
+        logger.info(f"Deleting deployment from {path}")
         for deployment in prefect_deployments:
             if file_name in deployment.tags:
-                delete_deployment(str(deployment.id), deployment.name)
+                delete_deployment(str(deployment.id), deployment.name)         
 
+branch = get_current_branch()
 
-current_branch = get_current_branch()
+commits = get_commits(branch=branch)
 
-commits = get_commits(main_branch="master", current_branch=current_branch)
+# Reverse the list of commits to ensure operations are performed in the same order as the user did
+inverted_list = reversed(commits)
 
 loop = asyncio.get_event_loop()
 prefect_deployments = loop.run_until_complete(get_prefect_deployments())
@@ -200,7 +206,7 @@ script_directory = os.getcwd()
 visited = []
 
 # Iterate over commit hashes
-for commit in commits:
+for commit in inverted_list:
     modified_files = get_modified_files(commit)
 
     for path, operation in modified_files.items():
