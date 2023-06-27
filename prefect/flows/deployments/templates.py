@@ -5,6 +5,7 @@ Templates for Prefect deployments.
 import importlib
 import os
 import pathlib
+import sys
 
 import __main__
 from prefect.blocks.core import Block
@@ -22,7 +23,7 @@ def get_deployment(
     infra_block: str = None,
     storage_block: str = None,
     version: int = 1,
-    tags: list[str] = [],
+    tags: list[str] = None,
 ) -> Deployment:
     """
     Build and return a Prefect deployment.
@@ -39,7 +40,7 @@ def get_deployment(
         infra_block (str, optional): Infrastructure block configured for the deployment. Defaults to None.
         storage_block (str, optional): Storage block configured for the deployment. Defaults to None.
         version (int, optional): Version of the deployment. Defaults to 1.
-        tags (list[str], optional): List of tags for the deployment. Defaults to [].
+        tags (list[str], optional): List of tags for the deployment. Defaults to None.
 
     Returns:
         Deployment: Prefect deployment that stores flow's metadata.
@@ -55,7 +56,17 @@ def get_deployment(
 
     infrastructure = Block.load(infra_block)
     storage = Block.load(storage_block)
-
+    """
+    Saves the file name from which the deployment was created in a list under the parameter "tags".
+    The file name is necessary in the tags to automatically delete the deployment based on that information,
+    as Prefect does not store any information about the file from which the deployment originated.
+    Automatic deletion is performed using Azure Pipeline "Prefect automatic deployments", which fetches the script during execution 
+    from the following repository. https://github.com/dyvenia/nesso-starter-project/blob/main/.github/scripts/prefect_deployments.py
+    """
+    if tags is None:
+        tags = [f"{sys.argv[0]}"]
+    else:
+        tags.append(f"{sys.argv[0]}")
     deployment = Deployment.build_from_flow(
         flow=flow,
         name=name,
@@ -83,7 +94,7 @@ def extract_and_load(
     infra_block: str = None,
     storage_block: str = None,
     version: int = 1,
-    tags: list[str] = [],
+    tags: list[str] = None,
 ) -> None:
     """
     Build and apply the Prefect deployment.
@@ -105,7 +116,7 @@ def extract_and_load(
         storage_block (str, optional): Storage block configured for the deployment. Defaults to the value of the
             `NESSO_PREFECT_DEFAULT_STORAGE_BLOCK` environment variable.
         version (int, optional): Version of the deployment. Defaults to 1.
-        tags (list[str], optional): List of tags for the deployment. Defaults to [].
+        tags (list[str], optional): List of tags for the deployment. Defaults to None.
 
     """
 
