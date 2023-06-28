@@ -1,0 +1,45 @@
+name: dbt test and run new models
+
+on:
+  push:
+
+defaults:
+  run:
+    shell: bash
+    working-directory: dbt/lakehouse/
+
+jobs:
+  dbt_tests:
+    runs-on: ubuntu-latest
+    env:
+      NESSO_USER: ${{ secrets.NESSO_USER }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Package installation
+        run: |
+          apt-get install gettext-base -y &&
+          pip install dbt-databricks==1.3.2
+
+      - name: Configuration of dbt profiles
+        run: |
+          mkdir -p ~/.dbt && touch ~/.dbt/profiles.yml &&
+          cd ../../ && envsubst < profiles.yml.example > ~/.dbt/profiles.yml 
+
+      - name: dbt package installltion
+        run: |
+          dbt deps
+
+      - name: dbt target setup
+        run: |
+          git switch main &&
+          dbt compile &&
+          git switch $GITHUB_REF_NAME &&
+          cp target/manifest.json . &&
+          dbt compile
+
+      - name: dbt tests on new/modified models
+        run: |
+          dbt test --models state:modified --state .
+          dbt run --models state:modified --state .
