@@ -1,0 +1,30 @@
+project_name: "{project_name}"
+## The image to use for spinning up a local container.
+image: "{image}"
+landing_schema: "{landing_schema}"
+
+## dbt configuration
+##
+dbt:
+  ## Database-specific connection details, as per
+  ## https://docs.getdbt.com/docs/core/connect-data-platform/profiles.yml.
+  ## The easiest way to populate this is to initialize the project with `nesso init`.
+  threads: 8
+  retries: 1
+  ## Used by dbt-external-tables for lakehouse data sources, such as
+  ## AWS Redshift Spectrum or Databricks.
+  landing_schema_location: "{landing_schema_location}"
+
+## Prefect configuration
+##
+prefect:
+  ## by default, dyvenia's Prefect Cloud organization/account
+  organization: "{prefect_organization}"
+  account: "{prefect_account}"
+  workspace_name: "{prefect_workspace_name}"
+  workspace_id: "{prefect_workspace_id}"
+  default_work_pool: "{prefect_default_work_pool}"
+  default_work_queue: "{prefect_default_work_queue}"
+  default_infra_block: "{prefect_default_infra_block}"
+  default_storage_block: "{prefect_default_storage_block}"
+  default_schedule_timezone: "{prefect_default_schedule_timezone}"
