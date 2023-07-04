@@ -171,7 +171,6 @@ def extract_and_load(
         schedule_timezone=schedule_timezone,
         work_pool=work_pool,
         work_queue=work_queue,
-        work_pool=work_pool,
         infra_block=infra_block,
         storage_block=storage_block,
         version=version,
