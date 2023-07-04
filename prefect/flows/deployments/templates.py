@@ -18,7 +18,9 @@ def get_deployment(
     is_flow_custom: bool = False,
     params: dict = None,
     schedule: str = None,
-    queue: str = None,
+    schedule_timezone: str = None,
+    work_pool: str = None,
+    work_queue: str = None,
     infra_block: str = None,
     storage_block: str = None,
     version: int = 1,
@@ -30,14 +32,30 @@ def get_deployment(
     Args:
         name (str): Name of the deployment.
         flow_name (str): Name of the flow.
-        is_flow_custom (bool): Whether flow is custom or pre-defined.
-            If True, deployment will reference to the named flow from '$NESSO_REPO_HOME/prefect/flows/custom' folder.
-            If False, deployment will reference to the named flow from 'prefect_viadot.flows' package. Defaults to False.
-        params (dict, optional): Dictionary of parameters for flow runs scheduled by the deployment. Defaults to None.
-        schedule (str, optional): Schedule for the deployment defined using the unix-cron string format ( * * * * * ). Defaults to None.
-        queue (str, optional): Work queue that will handle the deployment's run. Defaults to None.
-        infra_block (str, optional): Infrastructure block configured for the deployment. Defaults to None.
-        storage_block (str, optional): Storage block configured for the deployment. Defaults to None.
+        is_flow_custom (bool): Whether flow is custom or pre-defined. If True,
+            deployment will reference to the named flow from
+            '$NESSO_REPO_HOME/prefect/flows/custom' folder. If False, deployment
+            will reference to the named flow from 'prefect_viadot.flows' package.
+            Defaults to False.
+        params (dict, optional): Dictionary of parameters for flow runs scheduled
+            by the deployment. Defaults to None.
+        schedule (str, optional): Schedule for the deployment defined using
+            the unix-cron string format ( * * * * * ). Defaults to None.
+        schedule_timezone (str, optional): The timezone for the schedule. Defaults
+            to the value of the `NESSO_PREFECT_DEFAULT_SCHEDULE_TIMEZONE` environment
+            variable.
+        work_pool (str, optional): Work pool that will handle the deployment's run.
+            Defaults to the value of the `NESSO_PREFECT_DEFAULT_WORK_POOL` environment
+            variable.
+        work_queue (str, optional): Work queue that will handle the deployment's run.
+            Defaults to the value of the `NESSO_PREFECT_DEFAULT_WORK_QUEUE` environment
+            variable.
+        infra_block (str, optional): Infrastructure block configured for the deployment.
+            Defaults to the value of the `NESSO_PREFECT_DEFAULT_INFRA_BLOCK` environment
+            variable.
+        storage_block (str, optional): Storage block configured for the deployment.
+            Defaults to the value of the `NESSO_PREFECT_DEFAULT_STORAGE_BLOCK` environment
+            variable.
         version (int, optional): Version of the deployment. Defaults to 1.
         tags (list[str], optional): List of tags for the deployment. Defaults to [].
 
@@ -53,6 +71,26 @@ def get_deployment(
         flow = getattr(flow_module, flow_name)
         flow_filepath = getattr(flow_module, "__file__", None)
 
+    if infra_block is None:
+        infra_block = os.environ.get("NESSO_PREFECT_DEFAULT_INFRA_BLOCK")
+
+    if storage_block is None:
+        storage_block = os.environ.get("NESSO_PREFECT_DEFAULT_STORAGE_BLOCK")
+
+    if work_pool is None:
+        work_pool = os.environ.get("NESSO_PREFECT_DEFAULT_WORK_POOL")
+
+    if work_queue is None:
+        work_queue = os.environ.get("NESSO_PREFECT_DEFAULT_WORK_QUEUE")
+
+    if schedule:
+        if schedule_timezone is None:
+            schedule_timezone = os.environ.get(
+                "NESSO_PREFECT_DEFAULT_SCHEDULE_TIMEZONE"
+            )
+
+        schedule = CronSchedule(cron=schedule, timezone=schedule_timezone)
+
     infrastructure = Block.load(infra_block)
     storage = Block.load(storage_block)
 
@@ -62,7 +100,8 @@ def get_deployment(
         entrypoint=f"{flow_filepath}:{flow.fn.__name__}",
         parameters=params,
         schedule=schedule,
-        work_queue_name=queue,
+        work_pool_name=work_pool,
+        work_queue_name=work_queue,
         infrastructure=infrastructure,
         storage=storage,
         version=version,
@@ -79,7 +118,8 @@ def extract_and_load(
     params: dict = None,
     schedule: str = None,
     schedule_timezone: str = None,
-    queue: str = "default",
+    work_pool: str = None,
+    work_queue: str = None,
     infra_block: str = None,
     storage_block: str = None,
     version: int = 1,
@@ -91,37 +131,33 @@ def extract_and_load(
     Args:
         name (str): Name of the deployment.
         flow_name (str): Name of the flow.
-        is_flow_custom (bool): Whether flow is custom or pre-defined.
-            If True, deployment will reference to the named flow from '$NESSO_REPO_HOME/prefect/flows/custom' folder.
-            If False, deployment will reference to the named flow from 'prefect_viadot.flows' package. Defaults to False.
-        params (dict, optional): Dictionary of parameters for flow runs scheduled by the deployment. Defaults to None.
-        schedule (str, optional): Schedule for the deployment defined using the unix-cron string format ( * * * * * ).
-            Defaults to None.
-        schedule_timezone (str, optional): The timezone for the schedule. Defaults to the value of the
-            `NESSO_PREFECT_DEFAULT_SCHEDULE_TIMEZONE` environment variable.
-        queue (str, optional): Work queue that will handle the deployment's run. Defaults to "default".
-        infra_block (str, optional): Infrastructure block configured for the deployment. Defaults to the value of the
-            `NESSO_PREFECT_DEFAULT_INFRA_BLOCK` environment variable.
-        storage_block (str, optional): Storage block configured for the deployment. Defaults to the value of the
-            `NESSO_PREFECT_DEFAULT_STORAGE_BLOCK` environment variable.
+        is_flow_custom (bool): Whether flow is custom or pre-defined. If True,
+            deployment will reference the flow from
+            '$NESSO_REPO_HOME/prefect/flows/custom'. If False, the deployment
+            will reference the flow from 'prefect_viadot.flows' package.
+            Defaults to False.
+        params (dict, optional): Dictionary of parameters for flow runs scheduled
+            by the deployment. Defaults to None.
+        schedule (str, optional): Schedule for the deployment defined using
+            the cron string format. Defaults to None.
+        schedule_timezone (str, optional): The timezone for the schedule. Defaults
+            to the value of the `NESSO_PREFECT_DEFAULT_SCHEDULE_TIMEZONE` environment
+            variable.
+        work_pool (str, optional): Work pool that will handle the deployment's run.
+            Defaults to the value of the `NESSO_PREFECT_DEFAULT_WORK_POOL` environment
+            variable.
+        work_queue (str, optional): Work queue that will handle the deployment's run.
+            Defaults to the value of the `NESSO_PREFECT_DEFAULT_WORK_QUEUE` environment
+            variable.
+        infra_block (str, optional): Infrastructure block configured for the deployment.
+            Defaults to the value of the `NESSO_PREFECT_DEFAULT_INFRA_BLOCK` environment
+            variable.
+        storage_block (str, optional): Storage block configured for the deployment.
+            Defaults to the value of the `NESSO_PREFECT_DEFAULT_STORAGE_BLOCK` environment
+            variable.
         version (int, optional): Version of the deployment. Defaults to 1.
         tags (list[str], optional): List of tags for the deployment. Defaults to [].
-
     """
-
-    if infra_block is None:
-        infra_block = os.environ.get("NESSO_PREFECT_DEFAULT_INFRA_BLOCK")
-
-    if storage_block is None:
-        storage_block = os.environ.get("NESSO_PREFECT_DEFAULT_STORAGE_BLOCK")
-
-    if schedule:
-        if schedule_timezone is None:
-            schedule_timezone = os.environ.get(
-                "NESSO_PREFECT_DEFAULT_SCHEDULE_TIMEZONE"
-            )
-
-        schedule = CronSchedule(cron=schedule, timezone=schedule_timezone)
 
     params = params or {}
     params_final = {**EXTRACT_DEFAULT_PARAMS, **params}
@@ -132,7 +168,10 @@ def extract_and_load(
         is_flow_custom=is_flow_custom,
         params=params_final,
         schedule=schedule,
-        queue=queue,
+        schedule_timezone=schedule_timezone,
+        work_pool=work_pool,
+        work_queue=work_queue,
+        work_pool=work_pool,
         infra_block=infra_block,
         storage_block=storage_block,
         version=version,
